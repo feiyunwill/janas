@@ -113,10 +113,16 @@ int main(void)
             x = -x;
         float s, c;
         janas_sincosf(x, &s, &c);
-        CHECK(close_enough(s, sin((double)x)), "sin(%.9g) = %.9g, want %.9g", x,
-              s, sin((double)x));
-        CHECK(close_enough(c, cos((double)x)), "cos(%.9g) = %.9g, want %.9g", x,
-              c, cos((double)x));
+        /* far angles: the reference may be off itself - Windows's C library
+           reduces them with fewer digits of pi, 1.2e-12 off at 9.4e8 where
+           ours agrees with the exact value - so a margin of |x| 2^-68 */
+        double far = fabs((double)x) * 0x1p-68;
+        CHECK(close_enough(s, sin((double)x)) ||
+                  fabs((double)s - sin((double)x)) <= far,
+              "sin(%.9g) = %.9g, want %.9g", x, s, sin((double)x));
+        CHECK(close_enough(c, cos((double)x)) ||
+                  fabs((double)c - cos((double)x)) <= far,
+              "cos(%.9g) = %.9g, want %.9g", x, c, cos((double)x));
     }
     for (int i = -60000; i <= 60000; i++) {
         float x = (float)i * 5e-4f;

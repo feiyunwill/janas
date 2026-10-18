@@ -25,6 +25,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "common/aligned.h"
 #include "jmath.h"
 #include "matvec.h"
 #include "vmath.h"
@@ -114,8 +115,8 @@ void janas_m_assist_free(struct janas_llm_model *m)
         janas_jns_close(&a->j);
     janas_attn_destroy(a->attn);
     janas_attn_destroy(a->attn_swa);
-    free(a->res);
-    free(a->slots);
+    janas_aligned_free(a->res);
+    janas_aligned_free(a->slots);
     free(a->cat);
     free(a->x);
     free(a->xn);
@@ -191,12 +192,12 @@ int janas_m_assist_load(struct janas_llm_model *m, const char *path,
     a->ff = a->j.layers[0].m[JANAS_JNS_GATE].rows;
     a->hd_max = kl > kl_swa ? kl : kl_swa;
     /* the resident tensors, then each layer's feed-forward (its one slot) */
-    a->res = aligned_alloc(4096, h->resident_bytes);
+    a->res = janas_aligned_alloc(4096, h->resident_bytes);
     uint64_t sb = 0;
     for (uint32_t l = 0; l < a->n_layer; l++)
         if (a->j.layers[l].slot_bytes > sb)
             sb = a->j.layers[l].slot_bytes;
-    a->slots = aligned_alloc(4096, sb * a->n_layer);
+    a->slots = janas_aligned_alloc(4096, sb * a->n_layer);
     if (!a->res || !a->slots)
         return fail(err, err_len, path, "out of memory");
     struct {
